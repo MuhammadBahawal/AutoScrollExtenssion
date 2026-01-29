@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insta Reel AutoScroll - Settings</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+
+<body>
+    <div class="options-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">🎬</span>
+                <h1>Insta Reel AutoScroll</h1>
+            </div>
+            <p class="subtitle">Configure your auto-scroll preferences</p>
+        </header>
+
+        <!-- Settings Form -->
+        <main class="settings-main">
+            <!-- General Settings -->
+            <section class="settings-section">
+                <h2 class="section-title">General</h2>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="enabled" class="setting-label">Enable Auto-Scroll</label>
+                        <p class="setting-description">Automatically scroll to the next reel when current one ends</p>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="enabled" checked>
+                        <span class="slider"></span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="debugLogging" class="setting-label">Debug Logging</label>
+                        <p class="setting-description">Show detailed logs in browser console for troubleshooting</p>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="debugLogging">
+                        <span class="slider"></span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Timing Settings -->
+            <section class="settings-section">
+                <h2 class="section-title">Timing</h2>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="delayAfterEnd" class="setting-label">Delay After End (ms)</label>
+                        <p class="setting-description">Wait time before scrolling after video ends</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="delayAfterEnd" min="0" max="5000" step="100" value="600">
+                        <span class="unit">ms</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="randomExtraDelay" class="setting-label">Random Extra Delay (ms)</label>
+                        <p class="setting-description">Random delay added to make behavior more natural (0–400ms)</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="randomExtraDelay" min="0" max="1000" step="50" value="0">
+                        <span class="unit">ms</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scroll Settings -->
+            <section class="settings-section">
+                <h2 class="section-title">Scroll Behavior</h2>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="scrollFactor" class="setting-label">Scroll Factor</label>
+                        <p class="setting-description">Portion of viewport to scroll (0.6 = 60%, 1.0 = 100%)</p>
+                    </div>
+                    <div class="setting-control range-control">
+                        <input type="range" id="scrollFactor" min="0.6" max="1.5" step="0.05" value="0.95">
+                        <span class="range-value" id="scrollFactorValue">0.95</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="retryAttempts" class="setting-label">Retry Attempts</label>
+                        <p class="setting-description">Number of scroll attempts if first one fails</p>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" id="retryAttempts" min="1" max="5" step="1" value="2">
+                        <span class="unit">times</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Actions -->
+            <section class="actions-section">
+                <button class="btn btn-primary" id="saveBtn">
+                    💾 Save Settings
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">
+                    🔄 Reset to Defaults
+                </button>
+            </section>
+
+            <!-- Status Message -->
+            <div class="status-message" id="statusMessage"></div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-info">
+                <p>Version 1.0.0</p>
+                <p class="tip">💡 Tip: Enable debug logging to see detailed console output</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+
+</html>
