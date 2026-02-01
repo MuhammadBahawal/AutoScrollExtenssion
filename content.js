@@ -1,66 +1,151 @@
-(function () {
-  "use strict";
+/**
+ * AutoScroll Extension - Content Script Entry Point
+ * Initializes the extension on supported platforms
+ */
 
-  const LOG_PREFIX = "[InstaReelAutoScroll]";
+(async function () {
+  'use strict';
 
-  const DEFAULT_SETTINGS = {
-    enabled: true,
-    delayAfterEnd: 600,
-    scrollFactor: 0.95,
-    retryAttempts: 2,
-    randomExtraDelay: 0,
-    debugLogging: false,
-  };
+  const LOG_PREFIX = '[AutoScroll]';
 
-  let settings = { ...DEFAULT_SETTINGS };
-  let currentActiveVideo = null;
-  let scrollLock = false;
-  let sessionScrollCount = 0;
-  let lastScrollTimestamp = null;
-  let lastVideoInfo = { duration: 0, currentTime: 0 };
-  let endedDebounce = false;
-
+  // Simple logger for initialization
   function log(...args) {
-    if (settings.debugLogging) {
-      console.log(LOG_PREFIX, ...args);
-    }
-  }
-
-  function logAlways(...args) {
     console.log(LOG_PREFIX, ...args);
   }
 
-  function loadSettings() {
+  // Import modules dynamically (since content scripts don't support ES modules directly)
+  // We'll use a bundled approach or inline the code
+
+  // ==================== DEFAULTS ====================
+  const DEFAULT_SETTINGS = {
+    globalEnabled: true,
+    theme: 'dark',
+    sites: {
+      instagram: { enabled: true },
+      youtube: { enabled: true },
+      tiktok: { enabled: true },
+      x: { enabled: true },
+      facebook: { enabled: true }
+    },
+    delayAfterEnd: 600,
+    randomExtraDelay: 200,
+    scrollFactor: 0.95,
+    retryAttempts: 3,
+    hotkeys: {
+      enabled: true,
+      togglePause: 'Space',
+      scrollNext: 'ArrowDown',
+      scrollPrev: 'ArrowUp'
+    },
+    safety: {
+      stopOnTabInactive: true,
+      stopOnManualScroll: false,
+      pauseOnInteraction: true,
+      manualScrollCooldown: 2000
+    },
+    debugLogging: false
+  };
+
+  const SITE_CONFIGS = {
+    instagram: {
+      patterns: [/instagram\.com/],
+      supportedPaths: [/\/reels?/, /\/reel\//],
+      videoSelector: 'video'
+    },
+    youtube: {
+      patterns: [/youtube\.com/, /youtu\.be/],
+      supportedPaths: [/\/shorts\//],
+      videoSelector: 'video'
+    },
+    tiktok: {
+      patterns: [/tiktok\.com/],
+      supportedPaths: [/\/foryou/, /\/@[^/]+\/video\//, /^\/$/],
+      videoSelector: 'video'
+    },
+    x: {
+      patterns: [/twitter\.com/, /x\.com/],
+      supportedPaths: [/\/home/, /\/status\//, /\/i\/videos/],
+      videoSelector: 'video'
+    },
+    facebook: {
+      patterns: [/facebook\.com/, /fb\.com/],
+      supportedPaths: [/\/reels?/, /\/reel\//, /\/watch/],
+      videoSelector: 'video'
+    }
+  };
+
+  // ==================== STATE ====================
+  let settings = { ...DEFAULT_SETTINGS };
+  let currentSite = null;
+  let currentVideo = null;
+  let scrollLock = false;
+  let endedDebounce = false;
+  let lastKnownTime = 0;
+  let wasNearEnd = false;
+  let loopCount = 0;
+  let sessionStats = {
+    scrollCount: 0,
+    lastScrollTime: null,
+    lastVideoInfo: { duration: 0, currentTime: 0 }
+  };
+  let mutationObserver = null;
+  let urlCheckInterval = null;
+  let lastUrl = window.location.href;
+  let isPaused = false;
+
+  // ==================== SITE DETECTION ====================
+  function detectSite() {
+    const url = window.location.href;
+
+    for (const [siteName, config] of Object.entries(SITE_CONFIGS)) {
+      const matchesHost = config.patterns.some(pattern => pattern.test(url));
+      if (matchesHost) {
+        const isSupported = config.supportedPaths.some(pattern => pattern.test(window.location.pathname));
+        return {
+          name: siteName,
+          config,
+          isSupported
+        };
+      }
+    }
+
+    return null;
+  }
+
+  // ==================== SETTINGS ====================
+  async function loadSettings() {
     return new Promise((resolve) => {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.sync) {
+      if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
         chrome.storage.sync.get(DEFAULT_SETTINGS, (result) => {
           settings = { ...DEFAULT_SETTINGS, ...result };
-          log("Settings loaded:", settings);
+          if (settings.debugLogging) {
+            log('Settings loaded:', settings);
+          }
           resolve(settings);
         });
       } else {
-        log("Chrome storage not available, using defaults");
         resolve(settings);
       }
     });
   }
 
   function setupSettingsListener() {
-    if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.onChanged) {
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
       chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName === "sync") {
+        if (areaName === 'sync') {
           for (const key in changes) {
             if (key in settings) {
               settings[key] = changes[key].newValue;
-              log(`Setting changed: ${key} = ${changes[key].newValue}`);
+              if (settings.debugLogging) {
+                log(`Setting changed: ${key}`, changes[key].newValue);
+              }
             }
           }
-          if (changes.enabled) {
-            if (changes.enabled.newValue) {
-              logAlways("Extension enabled");
+
+          if (changes.globalEnabled) {
+            if (changes.globalEnabled.newValue) {
               initializeVideoTracking();
             } else {
-              logAlways("Extension disabled");
               cleanupVideoTracking();
             }
           }
@@ -69,14 +154,30 @@
     }
   }
 
+  function isSiteEnabled(siteName) {
+    return settings.globalEnabled &&
+      (settings.sites?.[siteName]?.enabled ?? true);
+  }
+
+  // ==================== VIDEO DETECTION ====================
   function findAllVideos() {
-    return Array.from(document.querySelectorAll("video"));
+    if (!currentSite) return [];
+    const selector = currentSite.config.videoSelector || 'video';
+    const videos = Array.from(document.querySelectorAll(selector));
+
+    // Filter for visible, reasonably sized videos
+    return videos.filter(video => {
+      const rect = video.getBoundingClientRect();
+      return rect.width > 100 && rect.height > 100;
+    });
   }
 
   function getVisibilityScore(video) {
     const rect = video.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
     const viewportWidth = window.innerWidth;
+
+    if (rect.width === 0 || rect.height === 0) return 0;
 
     const visibleTop = Math.max(0, rect.top);
     const visibleBottom = Math.min(viewportHeight, rect.bottom);
@@ -85,13 +186,26 @@
 
     const visibleHeight = Math.max(0, visibleBottom - visibleTop);
     const visibleWidth = Math.max(0, visibleRight - visibleLeft);
-
     const visibleArea = visibleHeight * visibleWidth;
     const totalArea = rect.width * rect.height;
 
     if (totalArea === 0) return 0;
 
-    return visibleArea / totalArea;
+    let score = (visibleArea / totalArea) * 0.5;
+
+    // Bonus for playing
+    if (!video.paused && video.readyState >= 2) score += 0.25;
+
+    // Bonus for valid duration
+    if (video.duration && isFinite(video.duration)) score += 0.1;
+
+    // Bonus for center proximity
+    const videoCenter = rect.top + rect.height / 2;
+    const viewportCenter = viewportHeight / 2;
+    const centerDistance = Math.abs(videoCenter - viewportCenter);
+    score += (1 - Math.min(centerDistance / viewportHeight, 1)) * 0.15;
+
+    return score;
   }
 
   function findActiveVideo() {
@@ -107,46 +221,37 @@
       }
     }
 
-    if (bestScore >= 0.6) {
-      return bestVideo;
-    } else if (bestScore > 0) {
-      log(`Best video visibility (${bestScore.toFixed(2)}) is below 0.6 threshold`);
-      return bestVideo;
-    }
-
-    return null;
+    return bestScore >= 0.5 ? bestVideo : (bestScore > 0 ? bestVideo : null);
   }
 
-  let lastKnownTime = 0;
-  let wasNearEnd = false;
-  let loopCount = 0;
-
+  // ==================== END DETECTION ====================
   function handleVideoEnded() {
-    if (scrollLock || endedDebounce) {
-      log("Scroll locked or debounced, ignoring ended event");
+    if (scrollLock || endedDebounce || isPaused) {
       return;
     }
-    logAlways("Video ended event fired - triggering scroll");
+    log('Video ended event');
     triggerAutoScroll();
   }
 
   function handleTimeUpdate(event) {
     const video = event.target;
-    if (!video || scrollLock || endedDebounce) return;
+    if (!video || scrollLock || endedDebounce || isPaused) return;
 
     const duration = video.duration;
     const currentTime = video.currentTime;
 
-    lastVideoInfo = { duration, currentTime };
+    sessionStats.lastVideoInfo = { duration, currentTime };
 
     if (!duration || !isFinite(duration) || duration < 1) return;
 
-    const nearEnd = (duration - currentTime) < 0.5;
+    const epsilon = 0.5;
+    const nearEnd = (duration - currentTime) < epsilon;
     const jumpedToStart = currentTime < 2 && lastKnownTime > (duration - 2);
 
+    // Loop detection
     if (jumpedToStart && wasNearEnd) {
       loopCount++;
-      logAlways(`Video LOOPED! (Loop #${loopCount}) - Triggering auto-scroll`);
+      log(`Video LOOPED! (Loop #${loopCount})`);
       wasNearEnd = false;
       lastKnownTime = currentTime;
       triggerAutoScroll();
@@ -155,11 +260,11 @@
 
     if (nearEnd) {
       wasNearEnd = true;
-      log(`Video near end: ${currentTime.toFixed(2)}/${duration.toFixed(2)}`);
     }
 
-    if ((duration - currentTime) < 0.1 && !endedDebounce) {
-      logAlways(`Video at end: ${currentTime.toFixed(2)}/${duration.toFixed(2)} - Triggering scroll`);
+    // Very close to end
+    if ((duration - currentTime) < 0.15 && !endedDebounce) {
+      log(`Video at end threshold`);
       triggerAutoScroll();
       return;
     }
@@ -170,37 +275,35 @@
   function resetLoopTracking() {
     lastKnownTime = 0;
     wasNearEnd = false;
+    loopCount = 0;
   }
 
+  // ==================== SCROLLING ====================
   function findScrollContainer() {
     const selectors = [
       'div[style*="overflow"][style*="auto"]',
       'div[style*="overflow"][style*="scroll"]',
-      'section main div[style*="overflow"]',
-      'div._aagw',
-      'div[role="main"]',
+      '[role="main"]',
       'main',
+      'ytd-shorts',
+      '#shorts-inner-container'
     ];
 
     for (const selector of selectors) {
       const elements = document.querySelectorAll(selector);
       for (const el of elements) {
         const style = window.getComputedStyle(el);
-        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
-          if (el.scrollHeight > el.clientHeight) {
-            log("Found scroll container:", el.className || el.tagName);
-            return el;
-          }
+        if ((style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          el.scrollHeight > el.clientHeight) {
+          return el;
         }
       }
     }
 
     if (document.documentElement.scrollHeight > window.innerHeight) {
-      log("Using document.documentElement as scroll container");
       return document.documentElement;
     }
 
-    log("No scroll container found, using window");
     return null;
   }
 
@@ -210,24 +313,22 @@
     if (container && container !== document.documentElement) {
       container.scrollBy({
         top: scrollAmount,
-        left: 0,
-        behavior: "smooth",
+        behavior: 'smooth'
       });
-      logAlways(`Scrolled container by ${scrollAmount.toFixed(0)}px`);
     } else {
       window.scrollBy({
         top: scrollAmount,
-        left: 0,
-        behavior: "smooth",
+        behavior: 'smooth'
       });
-      logAlways(`Scrolled window by ${scrollAmount.toFixed(0)}px`);
+    }
+
+    if (settings.debugLogging) {
+      log(`Scrolled by ${scrollAmount.toFixed(0)}px`);
     }
   }
 
   function simulateArrowDown() {
-    logAlways("Simulating ArrowDown key press");
-
-    const target = currentActiveVideo || document.activeElement || document.body;
+    const target = currentVideo || document.activeElement || document.body;
 
     const keydownEvent = new KeyboardEvent('keydown', {
       key: 'ArrowDown',
@@ -235,107 +336,107 @@
       keyCode: 40,
       which: 40,
       bubbles: true,
-      cancelable: true,
-    });
-
-    const keyupEvent = new KeyboardEvent('keyup', {
-      key: 'ArrowDown',
-      code: 'ArrowDown',
-      keyCode: 40,
-      which: 40,
-      bubbles: true,
-      cancelable: true,
+      cancelable: true
     });
 
     target.dispatchEvent(keydownEvent);
-    setTimeout(() => target.dispatchEvent(keyupEvent), 100);
-
     document.dispatchEvent(keydownEvent);
+
+    setTimeout(() => {
+      const keyupEvent = new KeyboardEvent('keyup', {
+        key: 'ArrowDown',
+        code: 'ArrowDown',
+        keyCode: 40,
+        which: 40,
+        bubbles: true,
+        cancelable: true
+      });
+      target.dispatchEvent(keyupEvent);
+      document.dispatchEvent(keyupEvent);
+    }, 50);
   }
 
   async function triggerAutoScroll() {
-    if (!settings.enabled) {
-      log("Extension disabled, skipping scroll");
+    if (!settings.globalEnabled || !isSiteEnabled(currentSite?.name)) {
       return;
     }
 
-    if (scrollLock) {
-      log("Scroll already in progress");
+    if (scrollLock || isPaused) {
+      return;
+    }
+
+    // Check tab visibility
+    if (settings.safety?.stopOnTabInactive && document.hidden) {
+      if (settings.debugLogging) {
+        log('Tab inactive, skipping scroll');
+      }
       return;
     }
 
     scrollLock = true;
     endedDebounce = true;
 
-    const previousVideo = currentActiveVideo;
-
+    const previousVideo = currentVideo;
     const randomExtra = Math.random() * settings.randomExtraDelay;
     const totalDelay = settings.delayAfterEnd + randomExtra;
 
-    logAlways(`Waiting ${totalDelay.toFixed(0)}ms before scrolling...`);
+    if (settings.debugLogging) {
+      log(`Waiting ${totalDelay.toFixed(0)}ms before scroll`);
+    }
 
     await delay(totalDelay);
 
     let success = false;
     let attempts = 0;
+    const methods = ['arrow_down', 'scroll_viewport', 'scroll_into_view', 'large_scroll'];
 
     while (!success && attempts < settings.retryAttempts) {
       attempts++;
-      logAlways(`Scroll attempt ${attempts}/${settings.retryAttempts}`);
 
-      const scrollAmount = window.innerHeight * settings.scrollFactor;
-      performScroll(scrollAmount);
+      for (const method of methods) {
+        try {
+          switch (method) {
+            case 'arrow_down':
+              simulateArrowDown();
+              break;
+            case 'scroll_viewport':
+              performScroll(window.innerHeight * settings.scrollFactor);
+              break;
+            case 'scroll_into_view':
+              const videos = findAllVideos();
+              const idx = videos.indexOf(previousVideo);
+              if (idx >= 0 && idx < videos.length - 1) {
+                videos[idx + 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+              break;
+            case 'large_scroll':
+              performScroll(window.innerHeight * 1.2);
+              break;
+          }
 
-      await delay(800);
+          await delay(600);
 
-      let newActiveVideo = findActiveVideo();
-      if (newActiveVideo && newActiveVideo !== previousVideo) {
-        success = true;
-        logAlways("Successfully scrolled to new video via scroll");
-        break;
-      }
-
-      logAlways("Scroll didn't work, trying ArrowDown key...");
-      simulateArrowDown();
-
-      await delay(800);
-
-      newActiveVideo = findActiveVideo();
-      if (newActiveVideo && newActiveVideo !== previousVideo) {
-        success = true;
-        logAlways("Successfully scrolled to new video via ArrowDown");
-        break;
-      }
-
-      if (attempts < settings.retryAttempts) {
-        const largerScroll = window.innerHeight * 1.2;
-        logAlways(`Retrying with larger scroll: ${largerScroll.toFixed(0)}px`);
-        performScroll(largerScroll);
-
-        await delay(800);
-
-        newActiveVideo = findActiveVideo();
-        if (newActiveVideo && newActiveVideo !== previousVideo) {
-          success = true;
-          logAlways("Successfully scrolled with larger amount");
-          break;
+          const newVideo = findActiveVideo();
+          if (newVideo && newVideo !== previousVideo) {
+            success = true;
+            log(`Scroll success: ${method} (attempt ${attempts})`);
+            break;
+          }
+        } catch (e) {
+          if (settings.debugLogging) {
+            log(`Method ${method} failed:`, e);
+          }
         }
       }
     }
 
-    if (!success) {
-      logAlways("Primary methods failed, attempting scrollIntoView fallback");
-      success = await scrollToNextVideo(previousVideo);
-    }
-
     if (success) {
-      sessionScrollCount++;
-      lastScrollTimestamp = Date.now();
-      logAlways(`Auto-scroll successful! Total scrolls this session: ${sessionScrollCount}`);
-
-      updatePopupStats();
+      sessionStats.scrollCount++;
+      sessionStats.lastScrollTime = Date.now();
+      log(`Total scrolls: ${sessionStats.scrollCount}`);
+      sendStatsUpdate();
     } else {
-      logAlways("All scroll attempts failed - Instagram may have blocked scrolling");
+      log('All scroll methods failed');
     }
 
     setTimeout(() => {
@@ -345,115 +446,72 @@
     }, 500);
   }
 
-  async function scrollToNextVideo(previousVideo) {
-    if (!previousVideo) return false;
-
-    const allVideos = findAllVideos();
-    const currentIndex = allVideos.indexOf(previousVideo);
-
-    if (currentIndex >= 0 && currentIndex < allVideos.length - 1) {
-      const nextVideo = allVideos[currentIndex + 1];
-      logAlways("Scrolling next video into view");
-
-      nextVideo.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-
-      await delay(800);
-
-      const newVideo = findActiveVideo();
-      return newVideo && newVideo !== previousVideo;
-    }
-
-    let container = previousVideo.closest("div[role='presentation']") ||
-      previousVideo.closest("article") ||
-      previousVideo.parentElement?.parentElement;
-
-    if (container) {
-      const nextSibling = container.nextElementSibling;
-      if (nextSibling) {
-        logAlways("Scrolling next container into view");
-        nextSibling.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-
-        await delay(800);
-
-        const newVideo = findActiveVideo();
-        return newVideo && newVideo !== previousVideo;
-      }
-    }
-
-    return false;
-  }
-
+  // ==================== VIDEO TRACKING ====================
   function updateActiveVideo() {
-    if (!settings.enabled) return;
+    if (!settings.globalEnabled || !currentSite || !isSiteEnabled(currentSite.name)) {
+      return;
+    }
 
-    const newActiveVideo = findActiveVideo();
+    const newVideo = findActiveVideo();
 
-    if (newActiveVideo !== currentActiveVideo) {
-      if (currentActiveVideo) {
-        currentActiveVideo.removeEventListener("ended", handleVideoEnded);
-        currentActiveVideo.removeEventListener("timeupdate", handleTimeUpdate);
-        log("Detached listeners from previous video");
+    if (newVideo !== currentVideo) {
+      if (currentVideo) {
+        currentVideo.removeEventListener('ended', handleVideoEnded);
+        currentVideo.removeEventListener('timeupdate', handleTimeUpdate);
       }
 
       resetLoopTracking();
 
-      if (newActiveVideo) {
-        newActiveVideo.addEventListener("ended", handleVideoEnded);
-        newActiveVideo.addEventListener("timeupdate", handleTimeUpdate);
-        currentActiveVideo = newActiveVideo;
-        logAlways("Attached listeners to new active video", {
-          duration: newActiveVideo.duration?.toFixed(1) || "loading",
-          currentTime: newActiveVideo.currentTime?.toFixed(1) || 0,
-        });
+      if (newVideo) {
+        newVideo.addEventListener('ended', handleVideoEnded);
+        newVideo.addEventListener('timeupdate', handleTimeUpdate);
+        currentVideo = newVideo;
+
+        if (settings.debugLogging) {
+          log('Attached to new video', {
+            duration: newVideo.duration?.toFixed(1) || 'loading',
+            currentTime: newVideo.currentTime?.toFixed(1) || 0
+          });
+        }
       } else {
-        currentActiveVideo = null;
-        log("No active video found");
+        currentVideo = null;
       }
     }
   }
 
-  function cleanupVideoTracking() {
-    if (currentActiveVideo) {
-      currentActiveVideo.removeEventListener("ended", handleVideoEnded);
-      currentActiveVideo.removeEventListener("timeupdate", handleTimeUpdate);
-      currentActiveVideo = null;
-    }
-  }
-
   function initializeVideoTracking() {
-    log("Initializing video tracking");
+    if (settings.debugLogging) {
+      log('Initializing video tracking');
+    }
     updateActiveVideo();
   }
 
-  let mutationObserver = null;
-  let mutationDebounceTimer = null;
+  function cleanupVideoTracking() {
+    if (currentVideo) {
+      currentVideo.removeEventListener('ended', handleVideoEnded);
+      currentVideo.removeEventListener('timeupdate', handleTimeUpdate);
+      currentVideo = null;
+    }
+  }
 
+  // ==================== OBSERVERS ====================
   function setupMutationObserver() {
     if (mutationObserver) {
       mutationObserver.disconnect();
     }
 
-    mutationObserver = new MutationObserver((mutations) => {
-      if (mutationDebounceTimer) {
-        clearTimeout(mutationDebounceTimer);
-      }
+    let debounceTimer = null;
 
-      mutationDebounceTimer = setTimeout(() => {
-        const hasVideoChanges = mutations.some((mutation) => {
-          return (
-            mutation.type === "childList" &&
-            (mutation.addedNodes.length > 0 || mutation.removedNodes.length > 0)
-          );
-        });
+    mutationObserver = new MutationObserver((mutations) => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+
+      debounceTimer = setTimeout(() => {
+        const hasVideoChanges = mutations.some(m =>
+          m.type === 'childList' &&
+          (m.addedNodes.length > 0 || m.removedNodes.length > 0)
+        );
 
         if (hasVideoChanges) {
-          log("DOM changed, updating active video");
           updateActiveVideo();
         }
       }, 200);
@@ -461,178 +519,199 @@
 
     mutationObserver.observe(document.body, {
       childList: true,
-      subtree: true,
+      subtree: true
     });
-
-    log("Mutation observer set up");
   }
 
-  let scrollDebounceTimer = null;
-
   function setupScrollListener() {
-    window.addEventListener("scroll", () => {
-      if (scrollDebounceTimer) {
-        clearTimeout(scrollDebounceTimer);
-      }
+    let debounceTimer = null;
 
-      scrollDebounceTimer = setTimeout(() => {
+    window.addEventListener('scroll', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+
+      debounceTimer = setTimeout(() => {
         if (!scrollLock) {
           updateActiveVideo();
         }
       }, 150);
     }, { passive: true });
-
-    log("Scroll listener set up");
   }
 
+  function setupUrlWatcher() {
+    urlCheckInterval = setInterval(() => {
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        log('URL changed:', lastUrl);
+        handleUrlChange();
+      }
+    }, 500);
+  }
+
+  async function handleUrlChange() {
+    cleanupVideoTracking();
+    currentSite = detectSite();
+
+    if (currentSite?.isSupported && isSiteEnabled(currentSite.name)) {
+      await delay(1000);
+      initializeVideoTracking();
+      setupMutationObserver();
+    }
+  }
+
+  // ==================== MESSAGING ====================
   function setupMessageListener() {
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.onMessage) {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        log("Received message:", message);
-
-        if (message.action === "getStats") {
-          sendResponse({
-            scrollCount: sessionScrollCount,
-            lastScrollTimestamp: lastScrollTimestamp,
-            lastVideoInfo: lastVideoInfo,
-            enabled: settings.enabled,
-          });
-        } else if (message.action === "testScroll") {
-          log("Test scroll triggered from popup");
-          performTestScroll().then(() => {
-            sendResponse({ success: true, scrollCount: sessionScrollCount });
-          });
-          return true;
-        } else if (message.action === "resetStats") {
-          sessionScrollCount = 0;
-          lastScrollTimestamp = null;
-          sendResponse({ success: true });
-        }
-
+        handleMessage(message, sendResponse);
         return true;
       });
     }
   }
 
-  async function performTestScroll() {
-    const scrollAmount = window.innerHeight * settings.scrollFactor;
-    logAlways(`Test scroll: ${scrollAmount.toFixed(0)}px`);
-
-    performScroll(scrollAmount);
-    await delay(600);
-
-    simulateArrowDown();
-    await delay(600);
-
-    const allVideos = findAllVideos();
-    if (allVideos.length > 1 && currentActiveVideo) {
-      const currentIndex = allVideos.indexOf(currentActiveVideo);
-      if (currentIndex >= 0 && currentIndex < allVideos.length - 1) {
-        allVideos[currentIndex + 1].scrollIntoView({
-          behavior: "smooth",
-          block: "center",
+  function handleMessage(message, sendResponse) {
+    switch (message.action) {
+      case 'getStats':
+        sendResponse({
+          scrollCount: sessionStats.scrollCount,
+          lastScrollTimestamp: sessionStats.lastScrollTime,
+          lastVideoInfo: sessionStats.lastVideoInfo,
+          enabled: settings.globalEnabled,
+          paused: isPaused,
+          siteName: currentSite?.name || null,
+          isSupported: currentSite?.isSupported || false
         });
-      }
-    }
+        break;
 
-    await delay(400);
-    sessionScrollCount++;
-    lastScrollTimestamp = Date.now();
-    updateActiveVideo();
-    updatePopupStats();
-    logAlways("Test scroll completed");
+      case 'testScroll':
+        triggerAutoScroll().then(() => {
+          sendResponse({
+            success: true,
+            scrollCount: sessionStats.scrollCount
+          });
+        });
+        break;
+
+      case 'resetStats':
+        sessionStats = { scrollCount: 0, lastScrollTime: null, lastVideoInfo: { duration: 0, currentTime: 0 } };
+        sendResponse({ success: true });
+        break;
+
+      case 'togglePause':
+        isPaused = !isPaused;
+        log(`Auto-scroll ${isPaused ? 'paused' : 'resumed'}`);
+        sendResponse({ paused: isPaused });
+        break;
+
+      case 'getState':
+        sendResponse({
+          siteName: currentSite?.name,
+          isSupported: currentSite?.isSupported,
+          enabled: settings.globalEnabled,
+          paused: isPaused,
+          settings
+        });
+        break;
+
+      default:
+        sendResponse({ error: 'Unknown action' });
+    }
   }
 
-  function updatePopupStats() {
-    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+  function sendStatsUpdate() {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
       try {
         chrome.runtime.sendMessage({
-          action: "statsUpdate",
+          action: 'statsUpdate',
           data: {
-            scrollCount: sessionScrollCount,
-            lastScrollTimestamp: lastScrollTimestamp,
-            lastVideoInfo: lastVideoInfo,
-          },
+            scrollCount: sessionStats.scrollCount,
+            lastScrollTimestamp: sessionStats.lastScrollTime,
+            lastVideoInfo: sessionStats.lastVideoInfo,
+            siteName: currentSite?.name
+          }
         });
       } catch (e) {
+        // Popup closed
       }
     }
   }
 
+  // ==================== HOTKEYS ====================
+  function setupHotkeyListener() {
+    document.addEventListener('keydown', (event) => {
+      if (!settings.hotkeys?.enabled) return;
+
+      // Don't capture in input fields
+      const tagName = event.target.tagName.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea' || event.target.isContentEditable) {
+        return;
+      }
+
+      // Toggle pause with Ctrl/Cmd + Space
+      if (event.key === 'Space' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        isPaused = !isPaused;
+        log(`Auto-scroll ${isPaused ? 'paused' : 'resumed'}`);
+        sendStatsUpdate();
+      }
+    });
+  }
+
+  // ==================== UTILITIES ====================
   function delay(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function isReelsPage() {
-    const url = window.location.href;
-    return url.includes('instagram.com/reels') || url.includes('instagram.com/reel/');
-  }
-
+  // ==================== INITIALIZATION ====================
   async function init() {
+    log('Initializing AutoScroll extension...');
+
+    // Setup message listener first
     setupMessageListener();
 
-    if (!isReelsPage()) {
-      logAlways("Not on Instagram Reels page, waiting for navigation...");
-      setupNavigationListener();
+    // Detect site
+    currentSite = detectSite();
+
+    if (!currentSite) {
+      log('No supported site detected');
       return;
     }
 
-    logAlways("Initializing on Instagram Reels page");
+    log(`Detected: ${currentSite.name} (supported: ${currentSite.isSupported})`);
 
+    // Load settings
     await loadSettings();
     setupSettingsListener();
 
-    if (settings.enabled) {
-      await delay(1500);
-
-      initializeVideoTracking();
-      setupMutationObserver();
-      setupScrollListener();
-
-      logAlways("Extension fully initialized and active");
-    } else {
-      logAlways("Extension is disabled in settings");
+    // Check if enabled
+    if (!settings.globalEnabled || !isSiteEnabled(currentSite.name)) {
+      log('Extension disabled for this site');
+      return;
     }
-  }
 
-  let lastUrl = window.location.href;
-  let navigationInitialized = false;
-
-  function setupNavigationListener() {
-    setInterval(() => {
-      if (window.location.href !== lastUrl) {
-        lastUrl = window.location.href;
-        logAlways("URL changed to:", lastUrl);
-
-        if (isReelsPage() && !navigationInitialized) {
-          navigationInitialized = true;
-          initAfterNavigation();
-        } else if (!isReelsPage()) {
-          navigationInitialized = false;
-          cleanupVideoTracking();
-        }
-      }
-    }, 500);
-  }
-
-  async function initAfterNavigation() {
-    logAlways("Detected navigation to Reels page");
-
-    await loadSettings();
-    setupSettingsListener();
-
-    if (settings.enabled) {
-      await delay(1500);
-      initializeVideoTracking();
-      setupMutationObserver();
-      setupScrollListener();
-      logAlways("Extension initialized after navigation");
+    if (!currentSite.isSupported) {
+      log('Page type not supported for auto-scroll');
+      setupUrlWatcher();
+      return;
     }
+
+    // Wait for page to be ready
+    await delay(1000);
+
+    // Initialize
+    initializeVideoTracking();
+    setupMutationObserver();
+    setupScrollListener();
+    setupUrlWatcher();
+    setupHotkeyListener();
+
+    log('AutoScroll extension ready');
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+  // Start
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
+
 })();

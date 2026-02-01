@@ -1,15 +1,20 @@
 {
     "manifest_version": 3,
-    "name": "Insta Reel AutoScroll",
-    "version": "1.0.0",
-    "description": "Automatically scroll to the next Instagram Reel when the current one ends",
+    "name": "AutoScroll - Multi-Platform Video Scroller",
+    "short_name": "AutoScroll",
+    "version": "2.0.0",
+    "description": "Automatically scroll to the next video on Instagram Reels, YouTube Shorts, TikTok, X (Twitter), and Facebook Reels when the current one ends.",
     "permissions": [
         "storage",
-        "scripting",
         "activeTab"
     ],
     "host_permissions": [
-        "https://www.instagram.com/*"
+        "https://www.instagram.com/*",
+        "https://www.youtube.com/*",
+        "https://www.tiktok.com/*",
+        "https://twitter.com/*",
+        "https://x.com/*",
+        "https://www.facebook.com/*"
     ],
     "action": {
         "default_popup": "popup.html",
@@ -17,7 +22,8 @@
             "16": "icons/icon16.png",
             "48": "icons/icon48.png",
             "128": "icons/icon128.png"
-        }
+        },
+        "default_title": "AutoScroll - Multi-Platform Video Scroller"
     },
     "icons": {
         "16": "icons/icon16.png",
@@ -28,13 +34,18 @@
     "content_scripts": [
         {
             "matches": [
-                "https://www.instagram.com/*"
+                "https://www.instagram.com/*",
+                "https://www.youtube.com/*",
+                "https://www.tiktok.com/*",
+                "https://twitter.com/*",
+                "https://x.com/*",
+                "https://www.facebook.com/*"
             ],
             "js": [
                 "content.js"
             ],
             "run_at": "document_idle",
-            "all_frames": true
+            "all_frames": false
         }
     ]
 }

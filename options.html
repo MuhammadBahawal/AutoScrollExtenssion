@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Insta Reel AutoScroll - Settings</title>
+    <title>AutoScroll - Settings</title>
     <link rel="stylesheet" href="options.css">
 </head>
 
@@ -14,114 +14,255 @@
         <header class="header">
             <div class="logo">
                 <span class="logo-icon">🎬</span>
-                <h1>Insta Reel AutoScroll</h1>
+                <h1>AutoScroll Settings</h1>
             </div>
-            <p class="subtitle">Configure your auto-scroll preferences</p>
+            <span class="version">v2.0.0</span>
         </header>
 
-        <!-- Settings Form -->
-        <main class="settings-main">
-            <!-- General Settings -->
-            <section class="settings-section">
-                <h2 class="section-title">General</h2>
+        <!-- Status Banner -->
+        <div class="save-indicator" id="saveIndicator">
+            <span class="save-icon">✓</span>
+            Settings saved
+        </div>
 
-                <div class="setting-item">
+        <!-- General Section -->
+        <section class="settings-section">
+            <h2 class="section-title">General</h2>
+
+            <div class="setting-group">
+                <label class="setting-item">
                     <div class="setting-info">
-                        <label for="enabled" class="setting-label">Enable Auto-Scroll</label>
-                        <p class="setting-description">Automatically scroll to the next reel when current one ends</p>
+                        <span class="setting-label">Enable AutoScroll</span>
+                        <span class="setting-description">Master toggle for all platforms</span>
                     </div>
                     <div class="toggle-switch">
-                        <input type="checkbox" id="enabled" checked>
+                        <input type="checkbox" id="globalEnabled" checked>
                         <span class="slider"></span>
                     </div>
-                </div>
+                </label>
 
-                <div class="setting-item">
+                <label class="setting-item">
                     <div class="setting-info">
-                        <label for="debugLogging" class="setting-label">Debug Logging</label>
-                        <p class="setting-description">Show detailed logs in browser console for troubleshooting</p>
+                        <span class="setting-label">Debug Logging</span>
+                        <span class="setting-description">Show detailed logs in browser console</span>
                     </div>
                     <div class="toggle-switch">
                         <input type="checkbox" id="debugLogging">
                         <span class="slider"></span>
                     </div>
-                </div>
-            </section>
+                </label>
+            </div>
+        </section>
 
-            <!-- Timing Settings -->
-            <section class="settings-section">
-                <h2 class="section-title">Timing</h2>
+        <!-- Platforms Section -->
+        <section class="settings-section">
+            <h2 class="section-title">Platforms</h2>
+            <p class="section-description">Enable or disable auto-scroll for specific platforms</p>
 
-                <div class="setting-item">
+            <div class="platforms-list">
+                <label class="platform-setting" data-site="instagram">
+                    <div class="platform-info">
+                        <span class="platform-icon">📸</span>
+                        <div class="platform-details">
+                            <span class="platform-name">Instagram</span>
+                            <span class="platform-desc">Reels</span>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="siteInstagram" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="platform-setting" data-site="youtube">
+                    <div class="platform-info">
+                        <span class="platform-icon">▶️</span>
+                        <div class="platform-details">
+                            <span class="platform-name">YouTube</span>
+                            <span class="platform-desc">Shorts</span>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="siteYoutube" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="platform-setting" data-site="tiktok">
+                    <div class="platform-info">
+                        <span class="platform-icon">🎵</span>
+                        <div class="platform-details">
+                            <span class="platform-name">TikTok</span>
+                            <span class="platform-desc">For You • Video pages</span>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="siteTiktok" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="platform-setting" data-site="x">
+                    <div class="platform-info">
+                        <span class="platform-icon">𝕏</span>
+                        <div class="platform-details">
+                            <span class="platform-name">X (Twitter)</span>
+                            <span class="platform-desc">Timeline • Video feed</span>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="siteX" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="platform-setting" data-site="facebook">
+                    <div class="platform-info">
+                        <span class="platform-icon">👤</span>
+                        <div class="platform-details">
+                            <span class="platform-name">Facebook</span>
+                            <span class="platform-desc">Reels • Watch</span>
+                        </div>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="siteFacebook" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+        </section>
+
+        <!-- Timing Section -->
+        <section class="settings-section">
+            <h2 class="section-title">Timing</h2>
+            <p class="section-description">Control when auto-scroll happens after video ends</p>
+
+            <div class="setting-group">
+                <div class="setting-item slider-setting">
                     <div class="setting-info">
-                        <label for="delayAfterEnd" class="setting-label">Delay After End (ms)</label>
-                        <p class="setting-description">Wait time before scrolling after video ends</p>
+                        <span class="setting-label">Delay After End</span>
+                        <span class="setting-value" id="delayAfterEndValue">600ms</span>
                     </div>
-                    <div class="setting-control">
-                        <input type="number" id="delayAfterEnd" min="0" max="5000" step="100" value="600">
-                        <span class="unit">ms</span>
-                    </div>
+                    <input type="range" id="delayAfterEnd" min="0" max="3000" step="100" value="600">
+                    <span class="setting-description">Wait time before scrolling to next video</span>
                 </div>
 
-                <div class="setting-item">
+                <div class="setting-item slider-setting">
                     <div class="setting-info">
-                        <label for="randomExtraDelay" class="setting-label">Random Extra Delay (ms)</label>
-                        <p class="setting-description">Random delay added to make behavior more natural (0–400ms)</p>
+                        <span class="setting-label">Random Extra Delay</span>
+                        <span class="setting-value" id="randomExtraDelayValue">200ms</span>
                     </div>
-                    <div class="setting-control">
-                        <input type="number" id="randomExtraDelay" min="0" max="1000" step="50" value="0">
-                        <span class="unit">ms</span>
-                    </div>
+                    <input type="range" id="randomExtraDelay" min="0" max="2000" step="50" value="200">
+                    <span class="setting-description">Adds randomness to feel more natural</span>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Scroll Settings -->
-            <section class="settings-section">
-                <h2 class="section-title">Scroll Behavior</h2>
+        <!-- Scroll Behavior Section -->
+        <section class="settings-section">
+            <h2 class="section-title">Scroll Behavior</h2>
 
-                <div class="setting-item">
+            <div class="setting-group">
+                <div class="setting-item slider-setting">
                     <div class="setting-info">
-                        <label for="scrollFactor" class="setting-label">Scroll Factor</label>
-                        <p class="setting-description">Portion of viewport to scroll (0.6 = 60%, 1.0 = 100%)</p>
+                        <span class="setting-label">Scroll Factor</span>
+                        <span class="setting-value" id="scrollFactorValue">95%</span>
                     </div>
-                    <div class="setting-control range-control">
-                        <input type="range" id="scrollFactor" min="0.6" max="1.5" step="0.05" value="0.95">
-                        <span class="range-value" id="scrollFactorValue">0.95</span>
-                    </div>
+                    <input type="range" id="scrollFactor" min="0.5" max="1.5" step="0.05" value="0.95">
+                    <span class="setting-description">How much of the viewport to scroll (% of screen height)</span>
                 </div>
 
-                <div class="setting-item">
+                <div class="setting-item slider-setting">
                     <div class="setting-info">
-                        <label for="retryAttempts" class="setting-label">Retry Attempts</label>
-                        <p class="setting-description">Number of scroll attempts if first one fails</p>
+                        <span class="setting-label">Retry Attempts</span>
+                        <span class="setting-value" id="retryAttemptsValue">3</span>
                     </div>
-                    <div class="setting-control">
-                        <input type="number" id="retryAttempts" min="1" max="5" step="1" value="2">
-                        <span class="unit">times</span>
-                    </div>
+                    <input type="range" id="retryAttempts" min="1" max="5" step="1" value="3">
+                    <span class="setting-description">Number of scroll methods to try if first fails</span>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <!-- Actions -->
-            <section class="actions-section">
-                <button class="btn btn-primary" id="saveBtn">
-                    💾 Save Settings
-                </button>
-                <button class="btn btn-secondary" id="resetBtn">
-                    🔄 Reset to Defaults
-                </button>
-            </section>
+        <!-- Safety Section -->
+        <section class="settings-section">
+            <h2 class="section-title">Safety Controls</h2>
+            <p class="section-description">Prevent unwanted scrolling in certain situations</p>
 
-            <!-- Status Message -->
-            <div class="status-message" id="statusMessage"></div>
-        </main>
+            <div class="setting-group">
+                <label class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Stop When Tab Inactive</span>
+                        <span class="setting-description">Pause auto-scroll when you switch tabs</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="stopOnTabInactive" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Pause on Interaction</span>
+                        <span class="setting-description">Pause when you're actively interacting (focusing forms,
+                            etc.)</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="pauseOnInteraction" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+
+                <label class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Stop on Manual Scroll</span>
+                        <span class="setting-description">Temporarily pause after you scroll manually</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="stopOnManualScroll">
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+        </section>
+
+        <!-- Hotkeys Section -->
+        <section class="settings-section">
+            <h2 class="section-title">Keyboard Shortcuts</h2>
+
+            <div class="setting-group">
+                <label class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">Enable Hotkeys</span>
+                        <span class="setting-description">Use keyboard shortcuts to control auto-scroll</span>
+                    </div>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="hotkeysEnabled" checked>
+                        <span class="slider"></span>
+                    </div>
+                </label>
+            </div>
+
+            <div class="hotkeys-info">
+                <div class="hotkey-item">
+                    <span class="hotkey-label">Pause / Resume</span>
+                    <kbd>Ctrl</kbd> + <kbd>Space</kbd>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reset Section -->
+        <section class="settings-section reset-section">
+            <button class="reset-btn" id="resetAllBtn">
+                <span class="reset-icon">🔄</span>
+                Reset All Settings
+            </button>
+            <p class="reset-warning">This will restore all settings to their defaults</p>
+        </section>
 
         <!-- Footer -->
         <footer class="footer">
-            <div class="footer-info">
-                <p>Version 1.0.0</p>
-                <p class="tip">💡 Tip: Enable debug logging to see detailed console output</p>
-            </div>
+            <p>AutoScroll v2.0.0 • <a href="https://github.com" target="_blank">View on GitHub</a></p>
+            <p class="footer-note">No data collection • All settings stored locally</p>
         </footer>
     </div>
 
