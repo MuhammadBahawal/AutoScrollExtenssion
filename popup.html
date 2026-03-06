@@ -1,29 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoScroll</title>
+  <title>Insta Reel AutoScroll</title>
   <link rel="stylesheet" href="popup.css">
 </head>
-
 <body>
   <div class="popup-container">
     <!-- Header -->
     <header class="header">
       <div class="logo">
         <span class="logo-icon">🎬</span>
-        <h1>AutoScroll</h1>
+        <h1>Insta Reel AutoScroll</h1>
       </div>
-      <span class="version">v2.1</span>
     </header>
-
-    <!-- Status Banner -->
-    <div class="status-banner" id="statusBanner">
-      <span class="status-icon" id="statusIcon">●</span>
-      <span class="status-text" id="statusText">Detecting...</span>
-    </div>
 
     <!-- Main Toggle -->
     <section class="toggle-section">
@@ -34,58 +25,7 @@
           <span class="slider"></span>
         </div>
       </label>
-    </section>
-
-    <!-- Platform Section -->
-    <section class="platforms-section">
-      <h2 class="section-title">Platforms</h2>
-      <div class="platforms-grid">
-        <!-- Instagram -->
-        <div class="platform-item" data-site="instagram">
-          <span class="platform-icon">📸</span>
-          <span class="platform-name">Instagram</span>
-          <label class="platform-toggle">
-            <input type="checkbox" id="toggleInstagram" checked>
-            <span class="mini-slider"></span>
-          </label>
-        </div>
-        <!-- YouTube -->
-        <div class="platform-item" data-site="youtube">
-          <span class="platform-icon">▶️</span>
-          <span class="platform-name">YouTube</span>
-          <label class="platform-toggle">
-            <input type="checkbox" id="toggleYoutube" checked>
-            <span class="mini-slider"></span>
-          </label>
-        </div>
-        <!-- TikTok -->
-        <div class="platform-item" data-site="tiktok">
-          <span class="platform-icon">🎵</span>
-          <span class="platform-name">TikTok</span>
-          <label class="platform-toggle">
-            <input type="checkbox" id="toggleTiktok" checked>
-            <span class="mini-slider"></span>
-          </label>
-        </div>
-        <!-- X (Twitter) -->
-        <div class="platform-item" data-site="x">
-          <span class="platform-icon">𝕏</span>
-          <span class="platform-name">X (Twitter)</span>
-          <label class="platform-toggle">
-            <input type="checkbox" id="toggleX" checked>
-            <span class="mini-slider"></span>
-          </label>
-        </div>
-        <!-- Facebook -->
-        <div class="platform-item" data-site="facebook">
-          <span class="platform-icon">👤</span>
-          <span class="platform-name">Facebook</span>
-          <label class="platform-toggle">
-            <input type="checkbox" id="toggleFacebook" checked>
-            <span class="mini-slider"></span>
-          </label>
-        </div>
-      </div>
+      <p class="status-text" id="statusText">Enabled</p>
     </section>
 
     <!-- Stats Section -->
@@ -94,7 +34,7 @@
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-value" id="scrollCount">0</span>
-          <span class="stat-label">Scrolled</span>
+          <span class="stat-label">Reels Scrolled</span>
         </div>
         <div class="stat-card">
           <span class="stat-value" id="lastScroll">--</span>
@@ -112,8 +52,8 @@
           <span class="info-value" id="videoDuration">--</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Progress:</span>
-          <span class="info-value" id="videoProgress">--</span>
+          <span class="info-label">Current Time:</span>
+          <span class="info-value" id="videoCurrentTime">--</span>
         </div>
       </div>
     </section>
@@ -122,18 +62,12 @@
     <section class="actions-section">
       <button class="action-btn primary" id="testScrollBtn">
         <span class="btn-icon">⬇️</span>
-        Skip to Next
+        Test Scroll Now
       </button>
-      <div class="action-row">
-        <button class="action-btn secondary" id="pauseBtn">
-          <span class="btn-icon" id="pauseIcon">⏸️</span>
-          <span id="pauseText">Pause</span>
-        </button>
-        <button class="action-btn secondary" id="resetStatsBtn">
-          <span class="btn-icon">🔄</span>
-          Reset
-        </button>
-      </div>
+      <button class="action-btn secondary" id="resetStatsBtn">
+        <span class="btn-icon">🔄</span>
+        Reset Stats
+      </button>
     </section>
 
     <!-- Footer -->
@@ -141,11 +75,11 @@
       <a href="options.html" target="_blank" class="settings-link">
         ⚙️ Settings
       </a>
-      <span class="hotkey-hint">Ctrl+Space to pause</span>
+      <span class="version">v1.0.0</span>
     </footer>
   </div>
 
+  <script src="webext-api.js"></script>
   <script src="popup.js"></script>
 </body>
-
 </html>

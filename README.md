@@ -1,230 +1,175 @@
-# AutoScroll - Multi-Platform Video Auto-Scroller
+# Insta Reel AutoScroll
 
-![Version](https://img.shields.io/badge/version-2.0.0-purple)
-![Manifest](https://img.shields.io/badge/manifest-v3-blue)
-![Platforms](https://img.shields.io/badge/platforms-5-green)
+A cross-browser WebExtension that automatically moves to the next Instagram Reel when the current reel ends.
 
-Automatically scroll to the next video when the current one ends on **Instagram Reels**, **YouTube Shorts**, **TikTok**, **X (Twitter)**, and **Facebook Reels**.
+![Manifest V3](https://img.shields.io/badge/Manifest-V3-1f6feb)
+![Browser Support](https://img.shields.io/badge/Browsers-Chrome%20%7C%20Edge%20%7C%20Brave%20%7C%20Opera%20%7C%20Vivaldi%20%7C%20Firefox-2ea44f)
+![License](https://img.shields.io/badge/License-MIT-8250df)
 
-## ✨ Features
+## Table of Contents
 
-### Multi-Platform Support
-- 📸 **Instagram Reels** - Works on `/reels/` and individual reel pages
-- ▶️ **YouTube Shorts** - Works on `/shorts/` pages
-- 🎵 **TikTok** - Works on For You page and video pages
-- 𝕏 **X (Twitter)** - Works on timeline and video feeds
-- 👤 **Facebook Reels** - Works on Reels and Watch pages
+- [Overview](#overview)
+- [Features](#features)
+- [Browser Support](#browser-support)
+- [Project Structure](#project-structure)
+- [Install (Developer Mode)](#install-developer-mode)
+- [Publish to Stores](#publish-to-stores)
+- [Settings](#settings)
+- [How It Works](#how-it-works)
+- [Permissions](#permissions)
+- [Troubleshooting](#troubleshooting)
+- [Privacy](#privacy)
+- [License](#license)
 
-### Smart Detection
-- **Intelligent video detection** using visibility scoring and center proximity
-- **Multiple end-detection methods**: `ended` event, `timeupdate` threshold, loop detection
-- **Automatic adapter selection** based on current site
+## Overview
 
-### Robust Scrolling
-- **Multiple scroll methods** per platform with automatic fallback
-- Configurable retry attempts if first method fails
-- Methods include: ArrowDown simulation, viewport scroll, container scroll, scrollIntoView
+`Insta Reel AutoScroll` watches the active Instagram Reel video and triggers a smooth scroll when playback ends. It includes a popup dashboard, configurable options, session stats, and fallback logic for Instagram DOM changes.
 
-### Modern UI
-- 🌙 Dark theme with purple gradient accents
-- Per-platform enable/disable toggles
-- Real-time session stats
-- Status banner showing current detection state
+## Features
 
-### Privacy Focused
-- ✅ **No data collection** - All settings stored locally
-- ✅ **No remote code execution**
-- ✅ **Minimal permissions** - Only storage, activeTab, and site-specific host permissions
-- ✅ **Chrome Web Store ready** (Manifest V3)
+- Auto-scrolls when the current Reel finishes
+- Active-video detection based on viewport visibility
+- Popup controls for enable/disable, test scroll, and stats reset
+- Options page for timing, retry behavior, and debug logging
+- Cross-browser API wrapper (`browser.*` and `chrome.*` compatibility)
+- Fallback script injection when content script is not connected
 
-## 📦 Installation
+## Browser Support
 
-### From Source (Developer Mode)
+| Browser | Support | Notes |
+| --- | --- | --- |
+| Chrome | Yes | Load unpacked or publish to Chrome Web Store |
+| Microsoft Edge | Yes | Load unpacked or publish to Edge Add-ons |
+| Brave | Yes | Uses Chromium extension model |
+| Opera | Yes | Uses Chromium extension model |
+| Vivaldi | Yes | Uses Chromium extension model |
+| Firefox | Yes | Load temporary add-on or publish via AMO |
+| Safari | Partial | Requires conversion with `safari-web-extension-converter` on macOS |
 
-1. Download or clone this repository
-2. Open Chrome/Edge/Brave and go to `chrome://extensions/`
-3. Enable **Developer mode** (toggle in top-right)
-4. Click **Load unpacked**
-5. Select the extension folder (`AutoScrollExtenssion`)
+## Project Structure
 
-### From Chrome Web Store
-*Coming soon*
-
-## ⚙️ Settings
-
-Access settings by clicking the extension icon → ⚙️ Settings, or right-click the extension icon → Options.
-
-### General
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Enable AutoScroll | ✓ | Master toggle for all platforms |
-| Debug Logging | ✗ | Show detailed logs in browser console |
-
-### Timing
-| Setting | Default | Range | Description |
-|---------|---------|-------|-------------|
-| Delay After End | 600ms | 0-3000ms | Wait time before scrolling |
-| Random Extra Delay | 200ms | 0-2000ms | Adds randomness to feel natural |
-
-### Scroll Behavior
-| Setting | Default | Range | Description |
-|---------|---------|-------|-------------|
-| Scroll Factor | 95% | 50-150% | Percentage of viewport to scroll |
-| Retry Attempts | 3 | 1-5 | Number of methods to try |
-
-### Safety Controls
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Stop When Tab Inactive | ✓ | Pause when switching tabs |
-| Pause on Interaction | ✓ | Pause when focusing inputs |
-| Stop on Manual Scroll | ✗ | Pause after user scrolls |
-
-### Keyboard Shortcuts
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + Space` | Pause/Resume auto-scroll |
-
-## 🏗️ Architecture
-
-```
+```text
 AutoScrollExtenssion/
-├── manifest.json          # Extension manifest (MV3)
-├── content.js             # Main content script (bundled IIFE)
-├── popup.html/css/js      # Popup UI
-├── options.html/css/js    # Settings page
-├── icons/                 # Extension icons
-└── src/                   # Source modules (for reference)
-    ├── core/
-    │   ├── Controller.js
-    │   ├── Logger.js
-    │   ├── SiteDetector.js
-    │   ├── EndDetector.js
-    │   ├── ScrollManager.js
-    │   ├── SafetyController.js
-    │   ├── HotkeyManager.js
-    │   └── VideoDetector.js
-    ├── adapters/
-    │   ├── BaseAdapter.js
-    │   ├── InstagramAdapter.js
-    │   ├── YouTubeAdapter.js
-    │   ├── TikTokAdapter.js
-    │   ├── XAdapter.js
-    │   └── FacebookAdapter.js
-    └── storage/
-        ├── SettingsManager.js
-        ├── StatsManager.js
-        └── defaults.js
+|- manifest.json
+|- webext-api.js
+|- content.js
+|- popup.html
+|- popup.css
+|- popup.js
+|- options.html
+|- options.css
+|- options.js
+|- icons/
+|  |- icon16.png
+|  |- icon32.png
+|  |- icon48.png
+|  `- icon128.png
+`- README.md
 ```
 
-### Adapter Pattern
+## Install (Developer Mode)
 
-Each platform has a dedicated adapter that handles:
-- **URL matching** - Detect if on this platform
-- **Page type detection** - Determine if on a supported page (Reels, Shorts, etc.)
-- **Video finding** - Find and score videos on the page
-- **Scroll methods** - Platform-specific scroll implementations
+### Chrome / Edge / Brave / Opera / Vivaldi
 
-### Video Detection
+1. Open your browser extensions page:
+   - Chrome: `chrome://extensions/`
+   - Edge: `edge://extensions/`
+   - Brave: `brave://extensions/`
+   - Opera: `opera://extensions/`
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select this project folder.
 
-Videos are scored by:
-1. **Visibility** - Percentage of video visible in viewport (50% weight)
-2. **Playing state** - Bonus if video is currently playing (25% weight)
-3. **Valid duration** - Bonus if duration can be read (10% weight)
-4. **Center proximity** - Closer to viewport center = higher score (15% weight)
+### Firefox
 
-### End Detection
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click **Load Temporary Add-on...**.
+3. Choose `manifest.json` from this project.
 
-Multiple methods to catch video end:
-1. **`ended` event** - Most reliable when fired by browser
-2. **`timeupdate` threshold** - When `duration - currentTime < 0.5s`
-3. **Loop detection** - When `currentTime` jumps back to start after being near end
+Note: temporary Firefox add-ons are removed after browser restart unless signed/published.
 
-## 🧪 Testing Checklist
+## Publish to Stores
 
-### Instagram
-- [ ] Navigate to instagram.com/reels/ - should detect "Instagram Reels"
-- [ ] Watch a reel to end - should auto-scroll to next
-- [ ] Navigate away from reels - should show "Navigate to Reels"
+### Chrome Web Store
 
-### YouTube
-- [ ] Navigate to youtube.com/shorts/xxx - should detect "YouTube Shorts"
-- [ ] Watch a short to end - should auto-scroll to next
-- [ ] Navigate to regular video - should show "Navigate to Shorts"
+1. Zip the extension root files (do not zip the parent folder).
+2. Upload in the Chrome Web Store Developer Dashboard.
+3. Complete listing details (description, screenshots, privacy info).
 
-### TikTok
-- [ ] Navigate to tiktok.com - should detect "TikTok"
-- [ ] Watch video to end - should auto-scroll to next
-- [ ] Test on video page (/video/xxx)
+### Edge Add-ons
 
-### X (Twitter)
-- [ ] Navigate to x.com or twitter.com - should detect "X (Twitter)"
-- [ ] Find a video tweet - watch to end
-- [ ] Should scroll to next video in timeline
+1. Use the same extension zip.
+2. Upload in Microsoft Partner Center (Edge Add-ons).
+3. Complete metadata and submit for review.
 
-### Facebook
-- [ ] Navigate to facebook.com/reels/ - should detect "Facebook Reels"
-- [ ] Watch a reel to end - should auto-scroll
-- [ ] Test on facebook.com/watch/
+### Firefox Add-ons (AMO)
 
-### General
-- [ ] Toggle global enable/disable - content script should respond
-- [ ] Toggle individual platform - only that platform affected
-- [ ] Change delay settings - should apply immediately
-- [ ] Test Ctrl+Space pause/resume
-- [ ] Verify stats update in real-time
-- [ ] Test "Skip to Next" button
-- [ ] Test "Reset" button
+1. Use the same source code.
+2. Zip extension root.
+3. Upload to AMO for signing/review.
 
-## 🔧 Troubleshooting
+### Safari
 
-### Extension not working?
+Use macOS + Xcode:
 
-1. **Refresh the page** after installing or enabling
-2. **Check the popup** - It should show "Active on [Platform]"
-3. **Enable Debug Logging** in Settings and check browser console (F12)
-4. **Make sure you're on a supported page** (Reels, Shorts, etc.)
+```bash
+xcrun safari-web-extension-converter /path/to/AutoScrollExtenssion
+```
 
-### Videos not being detected?
+Then open the generated Xcode project, configure signing, and build/distribute.
 
-- Some sites load videos dynamically - wait a moment after page load
-- Try scrolling manually once to trigger video loading
-- Check console for `[AutoScroll]` logs
+## Settings
 
-### Scrolling not working?
+| Setting | Default | Range | Description |
+| --- | --- | --- | --- |
+| Enable Auto-Scroll | `true` | boolean | Master extension toggle |
+| Debug Logging | `false` | boolean | Logs detailed behavior in console |
+| Delay After End | `600` | `0-5000` ms | Wait before auto-scroll |
+| Random Extra Delay | `0` | `0-1000` ms | Adds randomized delay |
+| Scroll Factor | `0.95` | `0.6-1.5` | Portion of viewport to scroll |
+| Retry Attempts | `2` | `1-5` | Additional attempts if first scroll fails |
 
-- The extension tries multiple scroll methods automatically
-- In rare cases, the site may have changed its DOM structure
-- Try increasing "Retry Attempts" in settings
+## How It Works
 
-## 📜 Privacy Policy
+1. Finds all `<video>` nodes on Instagram Reels pages.
+2. Calculates visibility score to determine the active video.
+3. Detects playback completion via `ended` and near-end timing checks.
+4. Scrolls to next Reel with retry and fallback strategies.
+5. Updates popup stats through runtime messaging.
 
-**AutoScroll does not collect any personal data.**
+## Permissions
 
-- All settings are stored locally in Chrome's sync storage
-- No analytics or tracking
-- No network requests except to the supported sites you visit
-- No data leaves your browser
+| Permission | Why it is needed |
+| --- | --- |
+| `storage` | Save settings and extension state |
+| `scripting` | Inject scripts from popup fallback flow |
+| `activeTab` | Target active tab for fallback injection |
+| `host_permissions` (`https://www.instagram.com/*`) | Restrict extension execution to Instagram |
 
-## 📄 License
+## Troubleshooting
 
-MIT License - see LICENSE file
+### Popup shows "Not connected to page"
 
-## 🤝 Contributing
+- Refresh Instagram tab
+- Open `https://www.instagram.com/reels/`
+- Reopen popup and test again
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
+### Auto-scroll is not triggering
 
-## 📝 Changelog
+- Confirm extension is enabled in popup
+- Turn on **Debug Logging** in options
+- Check browser DevTools console for `[InstaReelAutoScroll]` logs
 
-### v2.0.0
-- 🚀 Multi-platform support (Instagram, YouTube, TikTok, X, Facebook)
-- 🎨 Complete UI redesign
-- ⚙️ Per-platform enable/disable toggles
-- 🔒 Safety controls
-- ⌨️ Hotkey support
-- 📊 Real-time stats
+### Works in one browser but not another
 
-### v1.0.0
-- Initial release (Instagram Reels only)
+- Remove and reload unpacked extension
+- Confirm browser supports Manifest V3
+- Verify permissions were accepted during install
+
+## Privacy
+
+This extension stores only local/synced configuration values using the browser extension storage API. It does not include external analytics or remote data collection logic.
+
+## License
+
+MIT
