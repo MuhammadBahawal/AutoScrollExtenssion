@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Insta Reel AutoScroll",
+    "name": "Auto Scroll for Instagram Reels",
     "version": "1.0.0",
-    "description": "Automatically scroll to the next Instagram Reel when the current one ends",
+    "description": "Automatically scrolls to the next Instagram Reel when the current reel ends. Simple, lightweight, and easy to use.",
     "permissions": [
         "storage",
         "scripting",
